@@ -1,0 +1,28 @@
+{
+  // extend the base config
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // ensure that nobody can accidentally use this config for a build
+    "noEmit": true
+  },
+  // include all typescript compatible files (ts, tsx, js, jsx)
+  "include": [
+    // lint top level config files
+    "./.*.cjs",
+    "./.*.js",
+    "./.*.ts",
+    "./.*.mjs",
+    // lint files in all directories
+    "./**/*.cjs",
+    "./**/*.js",
+    "./**/*.jsx",
+    "./**/*.ts",
+    "./**/*.tsx",
+    // "./**/*.mdx",
+    "./**/*.mjs",
+  ],
+  // exclude node_modules and dist
+  "exclude": [
+    "node_modules",
+  ]
+}
