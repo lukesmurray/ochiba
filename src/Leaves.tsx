@@ -56,6 +56,8 @@ export const leavesControlsInitialValues = {
   segments: { value: 1, min: 1, max: 512, step: 1 },
   numInstances: { value: 100, min: 1, max: 1000, step: 1 },
   radius: { value: 10, min: 1, max: 100, step: 1 },
+  alphaTest: { value: 0.5, min: 0, max: 1, step: 0.001 },
+  envMapIntensity: { value: 1, min: 0, max: 10, step: 0.001 },
 };
 
 export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
@@ -69,22 +71,24 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
     segments,
     radius,
     numInstances,
+    alphaTest,
+    envMapIntensity,
   } = useControls("leaves", leavesControlsInitialValues);
 
   const { offset: textureOffset, repeat: textureRepeat } =
     leafIdxToTextureCoords[leafIndex];
 
   const textureLeafColor = useTexture(
-    "/assets/LeafSet021_1K-JPG/LeafSet021_1K_Color.jpg"
+    "/assets/textures/LeafSet021_1K-JPG/LeafSet021_1K_Color.jpg"
   );
   const textureLeafDisplacement = useTexture(
-    "/assets/LeafSet021_1K-JPG/LeafSet021_1K_Displacement.jpg"
+    "/assets/textures/LeafSet021_1K-JPG/LeafSet021_1K_Displacement.jpg"
   );
   const textureLeafNormal = useTexture(
-    "/assets/LeafSet021_1K-JPG/LeafSet021_1K_NormalGL.jpg"
+    "/assets/textures/LeafSet021_1K-JPG/LeafSet021_1K_NormalGL.jpg"
   );
   const textureLeafOpacity = useTexture(
-    "/assets/LeafSet021_1K-JPG/LeafSet021_1K_Opacity.jpg"
+    "/assets/textures/LeafSet021_1K-JPG/LeafSet021_1K_Opacity.jpg"
   );
 
   const uvs = useMemo(() => {
@@ -125,7 +129,8 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
         side={DoubleSide}
         wireframe={wireframe}
         transparent
-        alphaTest={0.1}
+        alphaTest={alphaTest}
+        envMapIntensity={envMapIntensity}
       />
       {Array(numInstances)
         .fill(null)
