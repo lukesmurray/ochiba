@@ -1,7 +1,7 @@
 import { Instance, Instances, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useControls } from "leva";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DoubleSide, Vector3Tuple } from "three";
 
 const leafIdxToTextureCoords: Array<{
@@ -54,8 +54,8 @@ export const leavesControlsInitialValues = {
   roughness: { value: 1, min: 0, max: 1, step: 0.001 },
   wireframe: false,
   segments: { value: 1, min: 1, max: 512, step: 1 },
-  numInstances: { value: 300, min: 1, max: 1000, step: 1 },
-  radius: { value: 25, min: 1, max: 100, step: 1 },
+  numInstances: { value: 100, min: 1, max: 1000, step: 1 },
+  radius: { value: 10, min: 1, max: 100, step: 1 },
 };
 
 export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
@@ -86,18 +86,6 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
   const textureLeafOpacity = useTexture(
     "/assets/LeafSet021_1K-JPG/LeafSet021_1K_Opacity.jpg"
   );
-  const textureLeafRoughness = useTexture(
-    "/assets/LeafSet021_1K-JPG/LeafSet021_1K_Roughness.jpg"
-  );
-
-  // segments = 1
-  // 0,1    1,1
-  // 0,0    1,0
-
-  // segments = 2
-  // 0,1    0.5,1    1,1
-  // 0,0.5  0.5,0.5  1,0.5
-  // 0,0    0.5,0    1,0
 
   const uvs = useMemo(() => {
     const result = new Float32Array((segments + 1) * (segments + 1) * 2);
@@ -132,13 +120,11 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
         displacementScale={displacementScale}
         normalMap={textureLeafNormal}
         alphaMap={textureLeafOpacity}
-        // roughnessMap={textureLeafRoughness}
         roughness={roughness}
         metalness={metalness}
         side={DoubleSide}
         wireframe={wireframe}
         transparent
-        // depthWrite={false}
         alphaTest={0.1}
       />
       {Array(numInstances)
@@ -155,44 +141,22 @@ interface LeafProps {
 }
 
 function Leaf({ radius }: LeafProps) {
-  const [random, setRandom] = useState(Math.random());
-  const [position, setPosition] = useState(randomVec3(radius));
-  useEffect(() => {
-    setPosition(randomVec3(radius));
-  }, [radius]);
+  const [leafRadius] = useState(Math.random() * radius);
+  const [y] = useState(Math.random() * radius);
+  const [theta, setTheta] = useState(Math.random() * Math.PI * 2);
   const [rotation, setRotation] = useState<Vector3Tuple>(randomEuler());
-  const [velocity, setVelocity] = useState<Vector3Tuple>([
-    Math.sin(random) * 2,
-    0,
-    Math.cos(random) * 2,
-  ]);
 
   useFrame((state, delta) => {
-    setRotation((prevRotation) => [
-      prevRotation[0] + delta,
-      prevRotation[1] + delta,
-      prevRotation[2],
-    ]);
-
-    const zFloor = -radius / 2;
-    if (position[1] > zFloor) {
-      setVelocity((prevVelocity) => [
-        prevVelocity[0],
-        prevVelocity[1],
-        prevVelocity[2],
-      ]);
-
-      setPosition((prevPosition) => [
-        prevPosition[0] + velocity[0] * delta,
-        Math.max(prevPosition[1] + velocity[1] * delta, zFloor),
-        prevPosition[2] + velocity[2] * delta,
-      ]);
-    } else {
-      setVelocity([0, 0, 0]);
-      setRotation([Math.PI / 2, random < 0.5 ? Math.PI : 0, 0]);
-    }
+    setTheta(theta + delta * 0.1);
+    setRotation([rotation[0] + delta, rotation[1] + delta, rotation[2]]);
   });
-  return <Instance position={position} rotation={rotation} />;
+
+  return (
+    <Instance
+      position={[Math.sin(theta) * leafRadius, y, Math.cos(theta) * leafRadius]}
+      rotation={rotation}
+    />
+  );
 }
 
 const randomVec3 = (radius: number): Vector3Tuple => {
@@ -210,3 +174,7 @@ const randomEuler = (): Vector3Tuple => {
     (Math.random() - 0.5) * Math.PI,
   ];
 };
+
+// ideas
+// - place them in a pile on the floor and have them jump
+// - when they hit the floor, rotate them to be flat
