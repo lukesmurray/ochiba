@@ -24,7 +24,7 @@ export function SkyBackground() {
     azimuth: { value: 60.4, min: -180, max: 180, step: 0.1 },
     exposure: { value: 0.6, min: 0, max: 1, step: 0.001 },
     distance: { value: 400000, min: 0, max: 1000000, step: 1 },
-    lightColor: "#ff0000",
+    lightColor: "#ffbf00",
     lightIntensity: { value: 0.25, min: 0, max: 2, step: 0.001 },
   });
 

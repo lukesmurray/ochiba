@@ -1,8 +1,8 @@
 import { Instance, Instances, useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useControls } from "leva";
-import { useMemo, useState } from "react";
-import { DoubleSide, Vector3Tuple } from "three";
+import { useMemo, useRef, useState } from "react";
+import { DoubleSide, Vector3, Vector3Tuple } from "three";
 
 const leafIdxToTextureCoords: Array<{
   offset: [number, number];
@@ -47,7 +47,7 @@ interface LeavesProps {
 }
 
 export const leavesControlsInitialValues = {
-  color: "#ff0000",
+  color: "#ff8f00",
   metalness: { value: 0, min: 0, max: 1, step: 0.001 },
   displacementBias: { value: 0, min: 0, max: 1, step: 0.001 },
   displacementScale: { value: 0.03, min: 0, max: 1, step: 0.001 },
@@ -55,8 +55,7 @@ export const leavesControlsInitialValues = {
   wireframe: false,
   segments: { value: 1, min: 1, max: 512, step: 1 },
   numInstances: { value: 100, min: 1, max: 1000, step: 1 },
-  radius: { value: 10, min: 1, max: 100, step: 1 },
-  alphaTest: { value: 0.5, min: 0, max: 1, step: 0.001 },
+  alphaTest: { value: 0.3, min: 0, max: 1, step: 0.001 },
   envMapIntensity: { value: 1, min: 0, max: 10, step: 0.001 },
 };
 
@@ -69,7 +68,6 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
     roughness,
     wireframe,
     segments,
-    radius,
     numInstances,
     alphaTest,
     envMapIntensity,
@@ -117,6 +115,7 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
         />
       </planeGeometry>
       <meshStandardMaterial
+        toneMapped={false}
         color={color}
         map={textureLeafColor}
         displacementMap={textureLeafDisplacement}
@@ -135,51 +134,99 @@ export function Leaves({ leafTextureIndex: leafIndex }: LeavesProps) {
       {Array(numInstances)
         .fill(null)
         .map((_, idx) => (
-          <Leaf key={idx} radius={radius} />
+          // eslint-disable-next-line react/no-array-index-key
+          <Leaf key={idx} />
         ))}
     </Instances>
   );
 }
 
-interface LeafProps {
-  radius: number;
-}
+function Leaf() {
+  const { windSpeed } = useControls("wind", {
+    windSpeed: { value: 1.5, min: 0, max: 10, step: 0.001 },
+  });
+  const camera = useThree((s) => s.camera);
+  const instanceRef = useRef<any>();
 
-function Leaf({ radius }: LeafProps) {
-  const [leafRadius] = useState(Math.random() * radius);
-  const [y] = useState(Math.random() * radius);
-  const [theta, setTheta] = useState(Math.random() * Math.PI * 2);
-  const [rotation, setRotation] = useState<Vector3Tuple>(randomEuler());
+  // initial position on edge of fustrum
+  const initialLeft = useMemo(() => Math.random(), []);
+  const initialTop = useMemo(() => -1 + Math.random() * 0.2, []);
+  const initialDepth = useMemo(() => 0.975 + Math.random() * 0.02, []);
+  const initialPosition = useMemo<Vector3>(
+    () =>
+      new Vector3(
+        -1 + 2 * initialLeft,
+        1 - 2 * initialTop,
+        initialDepth
+      ).unproject(camera),
+    [camera, initialDepth, initialLeft, initialTop]
+  );
+  const initialRotation = useMemo<Vector3Tuple>(() => {
+    return [
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2,
+    ];
+  }, []);
+  const initialVelocity = useMemo<Vector3Tuple>(
+    () => [
+      (Math.random() + 0.1) * windSpeed,
+      Math.random() - 0.5,
+      Math.random() - 0.5,
+    ],
+    [windSpeed]
+  );
+  const [velocity, setVelocity] = useState<Vector3Tuple>(initialVelocity);
 
-  useFrame((state, delta) => {
-    setTheta(theta + delta * 0.1);
-    setRotation([rotation[0] + delta, rotation[1] + delta, rotation[2]]);
+  useFrame((scene, delta) => {
+    const { current: instance } = instanceRef;
+    if (!instance) {
+      return;
+    }
+
+    const { position, rotation } = instance;
+
+    position.set(
+      position.x + velocity[0] * delta,
+      position.y + velocity[1] * delta,
+      position.z + velocity[2] * delta
+    );
+
+    rotation.set(
+      rotation.x + delta * 0.5,
+      rotation.y + delta * 0.5,
+      rotation.z
+    );
+
+    const cameraPosition = position.clone().project(camera);
+
+    const epsilon = 0.2;
+
+    if (
+      cameraPosition.z > 1 + epsilon ||
+      cameraPosition.z < -1 - epsilon ||
+      cameraPosition.y > 1 + epsilon ||
+      cameraPosition.y < -1 - epsilon ||
+      cameraPosition.x > 1 + epsilon ||
+      cameraPosition.x < -1 - epsilon
+    ) {
+      const newPosition = new Vector3(
+        -1 + 2 * initialLeft,
+        1.1,
+        initialDepth
+      ).unproject(camera);
+      position.set(newPosition.x, newPosition.y, newPosition.z);
+      setVelocity(initialVelocity);
+    } else {
+      setVelocity([velocity[0], velocity[1] - 0.01, velocity[2]]);
+    }
   });
 
   return (
     <Instance
-      position={[Math.sin(theta) * leafRadius, y, Math.cos(theta) * leafRadius]}
-      rotation={rotation}
+      ref={instanceRef}
+      position={initialPosition}
+      rotation={initialRotation}
     />
   );
 }
-
-const randomVec3 = (radius: number): Vector3Tuple => {
-  return [
-    (Math.random() - 0.5) * radius,
-    (Math.random() - 0.5) * radius,
-    (Math.random() - 0.5) * radius,
-  ];
-};
-
-const randomEuler = (): Vector3Tuple => {
-  return [
-    (Math.random() - 0.5) * Math.PI,
-    (Math.random() - 0.5) * Math.PI,
-    (Math.random() - 0.5) * Math.PI,
-  ];
-};
-
-// ideas
-// - place them in a pile on the floor and have them jump
-// - when they hit the floor, rotate them to be flat
